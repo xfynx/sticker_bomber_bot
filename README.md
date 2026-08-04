@@ -34,6 +34,7 @@ docker compose logs -f
 ```
 
 База лежит на именованном томе `bot-data`, так что пересборка образа ничего не теряет.
+Для боевого сервера — раздел [Деплой на сервер](#деплой-на-сервер) ниже.
 
 ### Локально
 
@@ -58,6 +59,145 @@ python bot.py
 | `MAX_BURST`        | `25`               | Потолок для `/count`                              |
 | `SEND_CONCURRENCY` | `8`                | Параллельных отправок                             |
 | `LOG_LEVEL`        | `INFO`             | Уровень логов                                     |
+
+---
+
+## Деплой на сервер
+
+Дальше — обычный VPS с Ubuntu 22.04/24.04 или Debian 12. Бот ходит наружу сам,
+входящие порты открывать не нужно: long polling, не webhook. Хватит самой
+дешёвой машины — 1 vCPU и 512 МБ памяти.
+
+### 1. Docker
+
+```bash
+curl -fsSL https://get.docker.com | sh
+sudo usermod -aG docker $USER   # чтобы не писать sudo перед каждой командой
+newgrp docker                   # или просто перелогиниться
+```
+
+Скрипт ставит и Docker Engine, и плагин `compose`. Проверка:
+
+```bash
+docker compose version
+```
+
+### 2. Код
+
+```bash
+sudo mkdir -p /opt && cd /opt
+git clone git@github.com:xfynx/sticker_bomber_bot.git
+cd sticker_bomber_bot
+```
+
+Если на сервере нет SSH-ключа с доступом к репозиторию, есть два пути:
+завести на GitHub **deploy key** (Settings репозитория → Deploy keys, доступ
+только к одному репозиторию — для сервера правильнее личного ключа) либо
+клонировать по HTTPS, раз репозиторий публичный.
+
+### 3. Конфиг и запуск
+
+```bash
+cp .env.example .env
+nano .env          # BOT_TOKEN и OWNER_IDS обязательны
+docker compose up -d --build
+```
+
+Проверить, что поднялся:
+
+```bash
+docker compose ps
+docker compose logs -f
+```
+
+В логах должно появиться `Запущен как @имя_бота (id=…)`. Если вместо этого
+`BOT_TOKEN не задан` — контейнер не увидел `.env`, проверь, что файл лежит
+рядом с `docker-compose.yml`.
+
+### 4. Автозапуск
+
+Отдельный systemd-юнит не нужен: в compose стоит `restart: unless-stopped`,
+а сам Docker после установки уже включён в автозагрузку. Убедиться:
+
+```bash
+sudo systemctl is-enabled docker    # ожидаем "enabled"
+```
+
+После перезагрузки сервера контейнер поднимется сам. Единственный случай,
+когда он не вернётся, — если ты остановил его руками через `docker compose stop`.
+
+### 5. Обновление
+
+```bash
+cd /opt/sticker_bomber_bot
+git pull
+docker compose up -d --build
+```
+
+База переживает пересборку: она лежит на именованном томе `bot-data`, а не
+внутри образа. Мусор от старых сборок иногда стоит подчищать:
+
+```bash
+docker image prune -f
+```
+
+### 6. Бэкап базы
+
+Вся конфигурация — слова, паки, фразы, настройки чатов — в одном файле SQLite.
+Снять копию, не останавливая бота:
+
+```bash
+docker compose exec -T bot python -c "
+import sqlite3
+src = sqlite3.connect('/data/bot.sqlite3')
+dst = sqlite3.connect('/data/backup.sqlite3')
+src.backup(dst)
+dst.close(); src.close()
+"
+docker compose cp bot:/data/backup.sqlite3 ./backup-$(date +%F).sqlite3
+```
+
+Тут используется онлайн-бэкап SQLite: он корректно снимает копию с горячей
+базы, в отличие от простого `cp` — на живой WAL-базе так можно получить битый
+снимок. Утилиты `sqlite3` в образе нет (`python:3.12-slim` её не содержит),
+поэтому зовём тот же механизм через модуль `sqlite3` из стандартной библиотеки.
+
+Восстановление:
+
+```bash
+docker compose stop bot
+docker compose cp ./backup-2026-08-05.sqlite3 bot:/data/bot.sqlite3
+docker compose start bot
+```
+
+Раз в сутки в cron:
+
+```bash
+0 4 * * * cd /opt/sticker_bomber_bot && docker compose exec -T bot python -c "import sqlite3; s=sqlite3.connect('/data/bot.sqlite3'); d=sqlite3.connect('/data/backup.sqlite3'); s.backup(d); d.close(); s.close()"
+```
+
+### 7. Чего не делать
+
+- **Не запускать два экземпляра с одним токеном.** Telegram отдаёт апдейты
+  только одному потребителю: второй `getUpdates` выбьет первый, и боты начнут
+  отбирать друг у друга сообщения с ошибкой `TerminatedByOtherGetUpdates`.
+  Перед запуском на сервере останови локальный `python bot.py`.
+- **Не коммитить `.env`.** Он в `.gitignore`, но токен всё равно стоит
+  отозвать у @BotFather, если он куда-то утёк.
+- **Не хранить базу в bind-mount на сетевой ФС.** SQLite и NFS не дружат
+  из-за блокировок; именованный том на локальном диске — то, что нужно.
+
+### Диагностика
+
+```bash
+docker compose logs --tail=100        # последние строки
+docker compose restart bot            # перезапуск
+docker compose down                   # остановить (том с базой остаётся)
+docker compose down -v                # ⚠️ снести вместе с базой
+```
+
+Если нужно больше подробностей — поставь `LOG_LEVEL=DEBUG` в `.env` и
+`docker compose up -d`. На уровне DEBUG видно, в том числе, промахи по `chance`.
 
 ---
 
