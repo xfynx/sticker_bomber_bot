@@ -1,0 +1,22 @@
+services:
+  bot:
+    build: .
+    image: sticker-bomber-bot:latest
+    container_name: sticker-bomber-bot
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      # Внутри контейнера база всегда лежит на томе
+      DB_PATH: /data/bot.sqlite3
+    volumes:
+      - bot-data:/data
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    stop_grace_period: 20s
+
+volumes:
+  bot-data:
