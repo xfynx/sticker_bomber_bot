@@ -153,7 +153,7 @@ def fmt_chat_settings(cfg: ChatConfig, words_count: int, scope: list[str]) -> st
         f"{esc(cfg.title) or '—'} ({cfg.type or '?'})",
         "",
         f"Бот: {'✅ включён' if cfg.enabled else '⛔ выключен'}",
-        f"NSFW-паки: {'🔞 да' if cfg.nsfw else 'нет'}",
+        f"Источник стикеров: {'🔞 только NSFW-паки' if cfg.nsfw else 'обычные паки'}",
         f"Стикеров за триггер: <b>{cfg.burst}</b>",
         f"Шанс срабатывания: <b>{cfg.chance}%</b>",
         f"Предупреждение перед залпом: {'да' if cfg.warn else 'нет'}",

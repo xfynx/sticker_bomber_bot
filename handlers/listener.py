@@ -11,7 +11,7 @@ from aiogram.types import ChatMemberUpdated, Message
 from bomber import CooldownGate, strike
 from config import settings
 from matcher import TriggerMatcher
-from storage import KIND_DEFAULT, KIND_NSFW, Storage
+from storage import Storage, kinds_for
 from utils import enum_value
 
 log = logging.getLogger(__name__)
@@ -72,7 +72,7 @@ async def _handle(
         return
     gate.hit(chat.id)
 
-    kinds = [KIND_DEFAULT] + ([KIND_NSFW] if cfg.nsfw else [])
+    kinds = kinds_for(cfg.nsfw)
     scope = await storage.scope_packs(chat.id)
     file_ids = await storage.pick_stickers(kinds, cfg.burst, scope or None)
     if not file_ids:
@@ -151,8 +151,7 @@ async def on_private_message(
     if hit is None:
         return
 
-    kinds = [KIND_DEFAULT] + ([KIND_NSFW] if nsfw else [])
-    file_ids = await storage.pick_stickers(kinds, burst)
+    file_ids = await storage.pick_stickers(kinds_for(nsfw), burst)
     if not file_ids:
         return
 

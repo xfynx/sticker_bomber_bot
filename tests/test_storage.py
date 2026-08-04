@@ -9,7 +9,24 @@ from storage import (
     KIND_DEFAULT,
     KIND_NSFW,
     Storage,
+    kinds_for,
 )
+
+
+class TestKindsFor:
+    """NSFW переключает пул целиком, а не дополняет обычный."""
+
+    def test_plain_mode_is_default_only(self):
+        assert kinds_for(False) == [KIND_DEFAULT]
+
+    def test_nsfw_mode_is_nsfw_only(self):
+        assert kinds_for(True) == [KIND_NSFW]
+
+    def test_default_never_leaks_into_nsfw(self):
+        assert KIND_DEFAULT not in kinds_for(True)
+
+    def test_nsfw_never_leaks_into_plain(self):
+        assert KIND_NSFW not in kinds_for(False)
 
 
 class TestPacks:
@@ -76,6 +93,20 @@ class TestStickerPicking:
     async def test_nsfw_included_when_requested(self, storage):
         picked = await storage.pick_stickers([KIND_DEFAULT, KIND_NSFW], 20)
         assert len(picked) == 20
+
+    async def test_nsfw_mode_gives_only_nsfw(self, storage):
+        picked = await storage.pick_stickers(kinds_for(True), 20)
+        assert len(picked) == 10
+        assert all(fid.startswith("nsfw_") for fid in picked)
+
+    async def test_plain_mode_gives_only_default(self, storage):
+        picked = await storage.pick_stickers(kinds_for(False), 20)
+        assert len(picked) == 10
+        assert all(fid.startswith("safe_") for fid in picked)
+
+    async def test_nsfw_mode_is_silent_without_nsfw_packs(self, storage):
+        await storage.delete_pack("Spicy")
+        assert await storage.pick_stickers(kinds_for(True), 10) == []
 
     async def test_respects_limit(self, storage):
         assert len(await storage.pick_stickers([KIND_DEFAULT, KIND_NSFW], 7)) == 7

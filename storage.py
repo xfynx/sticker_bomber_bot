@@ -28,6 +28,15 @@ MATCH_WORD = "word"
 MATCH_SUBSTRING = "substring"
 MATCH_MODES = (MATCH_WORD, MATCH_SUBSTRING)
 
+
+def kinds_for(nsfw: bool) -> list[str]:
+    """Какие категории паков доступны чату.
+
+    NSFW — это переключение пула, а не расширение: с включённым флагом летят
+    только 🔞 паки, обычные не подмешиваются.
+    """
+    return [KIND_NSFW] if nsfw else [KIND_DEFAULT]
+
 SCHEMA = """
 PRAGMA journal_mode=WAL;
 PRAGMA foreign_keys=ON;

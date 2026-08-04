@@ -7,7 +7,7 @@ from aiogram.types import Message
 
 from config import settings
 from matcher import TriggerMatcher
-from storage import MATCH_MODES, ChatConfig, Storage
+from storage import MATCH_MODES, ChatConfig, Storage, kinds_for
 from utils import (
     esc,
     fmt_chat_settings,
@@ -206,14 +206,30 @@ async def cmd_nsfw(
     value = parse_bool(command.args)
     if value is None:
         await message.answer(
-            f"Сейчас NSFW: <b>{'включён' if cfg.nsfw else 'выключен'}</b>\n"
+            f"Сейчас NSFW: <b>{'включён' if cfg.nsfw else 'выключен'}</b>\n\n"
+            "Это переключатель пула, а не добавка: с <code>/nsfw on</code> летят "
+            "<b>только</b> 🔞 паки, обычные не подмешиваются.\n"
             "Переключить: <code>/nsfw on</code> / <code>/nsfw off</code>"
         )
         return
+
     await storage.update_chat(chat_id, nsfw=value)
-    await message.answer(
-        "🔞 NSFW-паки включены в этом чате." if value else "NSFW-паки выключены."
-    )
+    if not value:
+        await message.answer("Вернул обычные паки — 🔞 больше не используются.")
+        return
+
+    available = await storage.count_stickers(kinds_for(True))
+    if available:
+        await message.answer(
+            f"🔞 Теперь беру стикеры только из NSFW-паков (доступно: <b>{available}</b>).\n"
+            "Обычные паки в этом чате отключены."
+        )
+    else:
+        await message.answer(
+            "🔞 Режим включён, но <b>ни одного NSFW-пака нет</b> — бот будет молчать.\n"
+            "Владельцу нужно добавить их: <code>/addpack &lt;имя&gt; nsfw</code>, "
+            "либо верни обычные паки командой <code>/nsfw off</code>."
+        )
 
 
 @router.message(Command("count"))

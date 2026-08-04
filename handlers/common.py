@@ -7,7 +7,8 @@ from aiogram.types import Message
 
 from bomber import strike
 from config import settings
-from storage import KIND_DEFAULT, KIND_NSFW, Storage
+from matcher import build_pattern, normalize
+from storage import GLOBAL_CHAT_ID, Storage, kinds_for
 from utils import esc, parse_int_range
 
 router = Router(name="common")
@@ -18,7 +19,7 @@ HELP_USER = """<b>Sticker Bomber</b>
 кидать стикеры на заданные слова.
 
 <b>Демо тут, в личке</b>
-/demo [1-10] — покажу, как это выглядит
+/demo [1-10] — покажу, как это выглядит (владельцу: <code>/demo 5 nsfw</code>)
 /try &lt;текст&gt; — проверю, сработал бы триггер на этой фразе
 
 <b>Настройка чата</b> (для админов чата)
@@ -88,18 +89,25 @@ async def cmd_id(message: Message) -> None:
 async def cmd_demo(
     message: Message, command: CommandObject, bot: Bot, storage: Storage
 ) -> None:
-    count = parse_int_range(command.args, 1, 10) or 3
+    args = (command.args or "").split()
+    count = parse_int_range(args[0], 1, 10) if args else None
+    count = count or 3
 
-    kinds = [KIND_DEFAULT]
-    if settings.is_owner(message.from_user.id if message.from_user else None):
-        kinds.append(KIND_NSFW)
+    # 🔞-демо доступно только владельцу и по явному запросу: /demo 5 nsfw
+    is_owner = settings.is_owner(message.from_user.id if message.from_user else None)
+    want_nsfw = is_owner and any(a.lower() in {"nsfw", "18", "🔞"} for a in args)
 
-    file_ids = await storage.pick_stickers(kinds, count)
+    file_ids = await storage.pick_stickers(kinds_for(want_nsfw), count)
     if not file_ids:
-        await message.answer(
-            "Паков пока нет. Владелец добавляет их командой "
-            "<code>/addpack &lt;имя_пака&gt;</code>."
-        )
+        if want_nsfw:
+            await message.answer(
+                "NSFW-паков нет. Добавь: <code>/addpack &lt;имя&gt; nsfw</code>"
+            )
+        else:
+            await message.answer(
+                "Паков пока нет. Владелец добавляет их командой "
+                "<code>/addpack &lt;имя_пака&gt;</code>."
+            )
         return
 
     result = await strike(
@@ -118,9 +126,6 @@ async def cmd_demo(
 @router.message(Command("try"), F.chat.type == "private")
 async def cmd_try(message: Message, command: CommandObject, storage: Storage) -> None:
     """Проверка фразы против слов выбранного чата (или глобальных)."""
-    from matcher import build_pattern, normalize
-    from storage import GLOBAL_CHAT_ID
-
     text = (command.args or "").strip()
     if not text:
         await message.answer("Как пользоваться: <code>/try привет как дела</code>")
