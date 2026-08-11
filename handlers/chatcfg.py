@@ -315,6 +315,31 @@ async def cmd_warn(
     )
 
 
+@router.message(Command("sed"))
+async def cmd_sed(
+    message: Message, command: CommandObject, bot: Bot, storage: Storage
+) -> None:
+    target = await _target(message, bot, storage)
+    if target is None:
+        return
+    chat_id, cfg = target
+    value = parse_bool(command.args)
+    if value is None:
+        await message.answer(
+            f"Замена по регулярке: <b>{'включена' if cfg.sed else 'выключена'}</b>\n\n"
+            "Ответь на сообщение строкой <code>s/что/на_что</code> — пришлю "
+            "исправленный вариант. Подробности: /sedhelp\n"
+            "Переключить: <code>/sed on</code> / <code>/sed off</code>"
+        )
+        return
+    await storage.update_chat(chat_id, sed=value)
+    await message.answer(
+        "✏️ Замена включена. Синтаксис: /sedhelp"
+        if value
+        else "Замена выключена — на <code>s/…/…</code> больше не реагирую."
+    )
+
+
 @router.message(Command("cooldown"))
 async def cmd_cooldown(
     message: Message, command: CommandObject, bot: Bot, storage: Storage

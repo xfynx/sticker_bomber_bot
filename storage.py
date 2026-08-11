@@ -68,6 +68,7 @@ CREATE TABLE IF NOT EXISTS chats (
     chance     INTEGER NOT NULL DEFAULT 100,
     delay      INTEGER NOT NULL DEFAULT 3,
     warn       INTEGER NOT NULL DEFAULT 1,
+    sed        INTEGER NOT NULL DEFAULT 1,
     reply_mode INTEGER NOT NULL DEFAULT 1,
     match_mode TEXT NOT NULL DEFAULT 'word',
     added_at   INTEGER NOT NULL DEFAULT 0,
@@ -115,6 +116,7 @@ MIGRATIONS_CHATS: tuple[tuple[str, str], ...] = (
     ("bombs", "bombs INTEGER NOT NULL DEFAULT 0"),
     ("delay", "delay INTEGER NOT NULL DEFAULT 3"),
     ("warn", "warn INTEGER NOT NULL DEFAULT 1"),
+    ("sed", "sed INTEGER NOT NULL DEFAULT 1"),
 )
 
 
@@ -140,6 +142,7 @@ class ChatConfig:
     chance: int
     delay: int
     warn: bool
+    sed: bool
     reply_mode: bool
     match_mode: str
     added_at: int
@@ -347,7 +350,7 @@ class Storage:
     async def update_chat(self, chat_id: int, **fields) -> None:
         allowed = {
             "title", "type", "enabled", "nsfw", "burst",
-            "cooldown", "chance", "delay", "warn", "reply_mode", "match_mode",
+            "cooldown", "chance", "delay", "warn", "sed", "reply_mode", "match_mode",
         }
         sets, args = [], []
         for key, value in fields.items():
@@ -570,6 +573,7 @@ def _row_to_chat(row: aiosqlite.Row) -> ChatConfig:
         chance=int(row["chance"]),
         delay=int(row["delay"]),
         warn=bool(row["warn"]),
+        sed=bool(row["sed"]),
         reply_mode=bool(row["reply_mode"]),
         match_mode=row["match_mode"],
         added_at=int(row["added_at"]),

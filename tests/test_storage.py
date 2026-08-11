@@ -198,6 +198,7 @@ class TestChats:
         assert cfg.enabled is True
         assert cfg.nsfw is False
         assert cfg.warn is True
+        assert cfg.sed is True
 
     async def test_ensure_is_idempotent(self, storage):
         await storage.ensure_chat(-100, "Чат", "supergroup", default_burst=7)
@@ -224,11 +225,12 @@ class TestChats:
 
     async def test_update_casts_bools(self, storage):
         await storage.ensure_chat(-100)
-        await storage.update_chat(-100, nsfw=True, enabled=False, warn=False)
+        await storage.update_chat(-100, nsfw=True, enabled=False, warn=False, sed=False)
         cfg = await storage.get_chat(-100)
         assert cfg.nsfw is True
         assert cfg.enabled is False
         assert cfg.warn is False
+        assert cfg.sed is False
 
     async def test_update_noop_without_fields(self, storage):
         await storage.ensure_chat(-100)
@@ -370,6 +372,7 @@ class TestMigrations:
             assert cfg.chance == 100
             assert cfg.delay == 3
             assert cfg.warn is True
+            assert cfg.sed is True
             assert cfg.bombs == 0
         finally:
             await st.close()

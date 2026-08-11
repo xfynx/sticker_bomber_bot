@@ -160,6 +160,7 @@ def fmt_chat_settings(cfg: ChatConfig, words_count: int, scope: list[str]) -> st
         f"Обратный отсчёт: <b>{cfg.delay}</b> сек" if cfg.delay else "Обратный отсчёт: выключен",
         f"Кулдаун: <b>{cfg.cooldown}</b> сек",
         f"Реплай на сообщение: {'да' if cfg.reply_mode else 'нет'}",
+        f"Замена по регулярке: {'✏️ да' if cfg.sed else 'нет'}",
         f"Режим поиска: <code>{cfg.match_mode}</code>",
         f"Слов в чате: <b>{words_count}</b>",
     ]

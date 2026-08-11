@@ -377,6 +377,20 @@ class TestCooldownGate:
         assert gate.check(-100, 10) is True
         assert gate.check(-200, 10) is True
 
+    def test_accepts_tuple_keys(self):
+        """Замены троттлятся по паре (chat_id, user_id) — ключ должен быть любым хешируемым."""
+        gate = CooldownGate()
+        key = ("sed", -100, 777)
+        assert gate.check(key, 5) is True
+        gate.hit(key)
+        assert gate.check(key, 5) is False
+        assert gate.check(("sed", -100, 888), 5) is True
+
+    def test_fractional_cooldown(self):
+        gate = CooldownGate()
+        gate.hit("k")
+        assert gate.check("k", 0.5) is False
+
 
 class TestBombResult:
     def test_ok_requires_sent(self):

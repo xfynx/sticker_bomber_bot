@@ -22,6 +22,7 @@ PRIVATE_COMMANDS = [
     BotCommand(command="start", description="Что я умею"),
     BotCommand(command="demo", description="Демо-бомбинг"),
     BotCommand(command="try", description="Проверить фразу на триггеры"),
+    BotCommand(command="sedhelp", description="Замена по регулярке: s/что/на_что"),
     BotCommand(command="chats", description="Мои чаты"),
     BotCommand(command="use", description="Выбрать чат для настройки"),
     BotCommand(command="settings", description="Настройки чата"),
@@ -45,6 +46,8 @@ GROUP_COMMANDS = [
     BotCommand(command="warn", description="Фраза-предупреждение"),
     BotCommand(command="cooldown", description="Пауза между бомбёжками"),
     BotCommand(command="nsfw", description="Разрешить 18+ паки"),
+    BotCommand(command="sed", description="Замена по регулярке on/off"),
+    BotCommand(command="sedhelp", description="Как работает замена"),
     BotCommand(command="toggle", description="Включить/выключить бота"),
 ]
 

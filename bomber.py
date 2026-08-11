@@ -4,6 +4,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
+from collections.abc import Hashable
 from dataclasses import dataclass, field
 
 from aiogram import Bot
@@ -42,32 +43,34 @@ class BombResult:
 
 
 class CooldownGate:
-    """Не даём чату бомбить чаще, чем раз в N секунд."""
+    """Пропускает событие не чаще раза в N секунд.
+
+    Ключ — любой хешируемый объект: для бомбинга это chat_id, для замен —
+    пара (chat_id, user_id).
+    """
 
     def __init__(self) -> None:
-        self._last: dict[int, float] = {}
+        self._last: dict[Hashable, float] = {}
 
-    def check(self, chat_id: int, cooldown: int) -> bool:
+    def check(self, key: Hashable, cooldown: float) -> bool:
         if cooldown <= 0:
             return True
-        now = time.monotonic()
-        last = self._last.get(chat_id, 0.0)
-        return now - last >= cooldown
+        return time.monotonic() - self._last.get(key, 0.0) >= cooldown
 
-    def hit(self, chat_id: int) -> None:
-        self._last[chat_id] = time.monotonic()
+    def hit(self, key: Hashable) -> None:
+        self._last[key] = time.monotonic()
 
-    def remaining(self, chat_id: int, cooldown: int) -> float:
+    def remaining(self, key: Hashable, cooldown: float) -> float:
         if cooldown <= 0:
             return 0.0
-        left = cooldown - (time.monotonic() - self._last.get(chat_id, 0.0))
+        left = cooldown - (time.monotonic() - self._last.get(key, 0.0))
         return max(0.0, left)
 
-    def reset(self, chat_id: int | None = None) -> None:
-        if chat_id is None:
+    def reset(self, key: Hashable | None = None) -> None:
+        if key is None:
             self._last.clear()
         else:
-            self._last.pop(chat_id, None)
+            self._last.pop(key, None)
 
 
 def render_timer(left: int, total: int) -> str:
